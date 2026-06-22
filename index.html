@@ -59,12 +59,14 @@
   .btn-line:hover{border-color:var(--sea);color:var(--sea)}
   .btn-line.active{background:var(--sand);color:#3a2606;border-color:var(--sand)}
 
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 6px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0 6px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
   .stat .k{font-size:12px;color:var(--muted);font-weight:600}
   .stat .v{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-top:2px}
   .stat .v small{font-size:14px;color:var(--muted);font-weight:600}
   .stat.accent{background:linear-gradient(135deg,#fff,var(--sand-soft))}
+  .stat.warn{background:linear-gradient(135deg,#fff,#FDECEC);border-color:#f3c9c9}
+  .stat.warn .v{color:#c0392b}
   .bar{height:8px;border-radius:999px;background:var(--mist);overflow:hidden;margin-top:10px}
   .bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--sea),var(--sand));transition:width .4s}
 
@@ -130,6 +132,15 @@
   .mini .mb{flex:0 0 46px;height:7px;border-radius:999px;background:var(--mist);overflow:hidden}
   .mini .mb>i{display:block;height:100%;background:linear-gradient(90deg,var(--sea),var(--sand))}
   tr.done td.name{box-shadow:1px 0 0 #EEF3F4, inset 4px 0 0 var(--ok)}
+  tr.up11 td{background:#F3F4FF}
+  tr.up11 td.name{background:#F3F4FF;box-shadow:1px 0 0 #EEF3F4, inset 4px 0 0 #6366f1}
+  tr.noshow td{background:#FCE8E8}
+  tr.noshow td.name{background:#FCE8E8;box-shadow:1px 0 0 #EEF3F4, inset 4px 0 0 #e23b3b}
+  .flags{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+  .flag{font:600 11px/1.4 inherit;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer}
+  .flag:hover{border-color:#cbd5d8}
+  .flag.on.up11{background:#EEF0FF;border-color:#c7ccf5;color:#4646c4}
+  .flag.on.noshow{background:#FDE3E3;border-color:#f3b9b9;color:#c0392b}
 
   .cbx{appearance:none;-webkit-appearance:none;width:24px;height:24px;border-radius:7px;border:2px solid #C3D2D6;background:#fff;
     cursor:pointer;position:relative;transition:.12s;vertical-align:middle}
@@ -379,6 +390,7 @@ const TEXTS = [
   {id:"medical",label:"רפואי (תרופות / אלרגיות / ריטלין + אריה)",ph:"פרטים רפואיים"},
   {id:"exits",label:"יציאות מיוחדות במחנה",ph:"יציאות"},
   {id:"transport",label:"נסיעה הביתה בסיום",ph:"איך נוסע/ת"},
+  {id:"notes",label:"הערות",ph:"הערות חופשי"},
 ];
 const NCHECK = CHECKS.length;
 const RKEY = g => "myam_roster_"+(ACAD.has(g)?"v3":"v2")+":"+g;
@@ -494,11 +506,13 @@ function overall(){ let t=0,checks=0,filled=0; MY_GRADES.forEach(g=>{ (roster[g]
 
 /* ====== render ====== */
 function renderStats(){
-  const o=overall(); let fullStudents=0; MY_GRADES.forEach(g=>fullStudents+=gradeStats(g).full);
+  const o=overall(); let fullStudents=0, noShow=0;
+  MY_GRADES.forEach(g=>{ fullStudents+=gradeStats(g).full; (roster[g]||[]).forEach(s=>{ if(isNamed(s) && (data[g][s.id]||{}).noshow) noShow++; }); });
   document.getElementById('stats').innerHTML=`
     <div class="stat"><div class="k">סה״כ תלמידים</div><div class="v">${o.total}</div></div>
     <div class="stat"><div class="k">הושלמה קליטה מלאה</div><div class="v">${fullStudents} <small>/ ${o.total}</small></div></div>
     <div class="stat accent"><div class="k">התקדמות כוללת</div><div class="v">${o.pct}%</div><div class="bar"><i style="width:${o.pct}%"></i></div></div>
+    <div class="stat warn"><div class="k">לא הגיעו לקליטה</div><div class="v">${noShow}</div></div>
     <div class="stat"><div class="k">מסגרות</div><div class="v">${MY_GRADES.length} <small>שכבות</small></div></div>`;
 }
 function renderTabs(){
@@ -533,8 +547,11 @@ function nameCell(stu){
   }
   const r=data[activeGrade][stu.id]||{};
   const by=r._by?`<span class="by">עודכן ע״י ${esc(r._by)}</span>`:"";
-  const nm=(stu.name||"").trim()?esc(stu.name):`<span class="slot">— מקום פנוי —</span>`;
-  return `<td class="name"><div class="nm-row">${av}<div class="nm-txt">${nm}<span class="city">${esc(stu.city)}</span>${by}</div></div></td>`;
+  const named=(stu.name||"").trim()!=="";
+  const nm=named?esc(stu.name):`<span class="slot">— מקום פנוי —</span>`;
+  const up11Chip=(activeGrade==='י')?`<button type="button" class="flag${r.up11?' on up11':''}" data-id="${stu.id}" data-f="up11">עולה ליא</button>`:'';
+  const flags=named?`<div class="flags">${up11Chip}<button type="button" class="flag${r.noshow?' on noshow':''}" data-id="${stu.id}" data-f="noshow">לא הגיע לקליטה</button></div>`:'';
+  return `<td class="name"><div class="nm-row">${av}<div class="nm-txt">${nm}<span class="city">${esc(stu.city)}</span>${by}${flags}</div></div></td>`;
 }
 function pwFor(p){
   if((p.email||"").toLowerCase()===ADMIN_EMAIL) return "admin2026";
@@ -566,11 +583,13 @@ function renderTable(){
     const r=data[activeGrade][stu.id]||{}, pct=Math.round(dc/NCHECK*100);
     const checks=CHECKS.map(c=>`<td><input type="checkbox" class="cbx" data-id="${stu.id}" data-f="${c.id}" ${r[c.id]?'checked':''} aria-label="${c.label}"></td>`).join('');
     const texts=TEXTS.map(t=>`<td class="txt"><input type="text" data-id="${stu.id}" data-f="${t.id}" value="${esc(r[t.id])}" placeholder="${t.ph}"></td>`).join('');
-    rows+=`<tr class="${isDone?'done':''}"><td class="idx">${pos+1}</td>${nameCell(stu)}<td><div class="mini"><span class="ring">${pct}%</span><span class="mb"><i style="width:${pct}%"></i></span></div></td>${checks}${texts}</tr>`;
+    const rowCls=[isDone?'done':'', r.noshow?'noshow':'', (r.up11&&activeGrade==='י')?'up11':''].filter(Boolean).join(' ');
+    rows+=`<tr class="${rowCls}"><td class="idx">${pos+1}</td>${nameCell(stu)}<td><div class="mini"><span class="ring">${pct}%</span><span class="mb"><i style="width:${pct}%"></i></span></div></td>${checks}${texts}</tr>`;
   });
   tb.innerHTML=rows||`<tr><td colspan="${3+NCHECK+TEXTS.length}" class="empty">אין תלמידים להצגה בתצוגה הזו.</td></tr>`;
   tb.querySelectorAll('input.cbx').forEach(c=>c.onchange=onCheck);
   tb.querySelectorAll('td.txt input').forEach(c=>c.oninput=onText);
+  tb.querySelectorAll('.flag').forEach(b=>b.onclick=onFlag);
   if(editing){
     tb.querySelectorAll('.ename').forEach(c=>c.oninput=onRename);
     tb.querySelectorAll('.ecity').forEach(c=>c.oninput=onCity);
@@ -592,6 +611,11 @@ function onCheck(e){
 let txtT;
 function onText(e){ const id=e.target.dataset.id,f=e.target.dataset.f; const r=rec(activeGrade,id); r[f]=e.target.value; stamp(r);
   clearTimeout(txtT); txtT=setTimeout(()=>saveData(activeGrade),700); }
+function onFlag(e){
+  const id=e.currentTarget.dataset.id, f=e.currentTarget.dataset.f;
+  const r=rec(activeGrade,id); r[f]=!r[f]; stamp(r);
+  saveData(activeGrade); renderTable(); renderStats(); renderTabs();
+}
 function findItem(g,id){ return (roster[g]||[]).find(x=>x.id===id); }
 function onRename(e){ const it=findItem(activeGrade,e.target.dataset.id); if(it){ it.name=e.target.value; it._rt=Date.now(); const n=me(); if(n) it._by=n; saveRoster(activeGrade);} }
 function onCity(e){ const it=findItem(activeGrade,e.target.dataset.id); if(it){ it.city=e.target.value; it._rt=Date.now(); saveRoster(activeGrade);} }
@@ -625,15 +649,15 @@ document.getElementById('editBtn').onclick=async()=>{
 
 /* ====== export ====== */
 function gradeAOA(g){
-  const head=["#","שם התלמיד/ה","עיר","אחוז קליטה",...CHECKS.map(c=>c.label),...TEXTS.map(t=>t.label)];
+  const head=["#","שם התלמיד/ה","עיר","אחוז קליטה",...CHECKS.map(c=>c.label),...TEXTS.map(t=>t.label),"עולה ליא","לא הגיע לקליטה"];
   const rows=(roster[g]||[]).map((stu,i)=>{ const r=data[g][stu.id]||{}; const dc=doneCount(g,stu.id);
-    return [i+1,stu.name,stu.city||"",Math.round(dc/NCHECK*100)+"%",...CHECKS.map(c=>r[c.id]?"✔":""),...TEXTS.map(t=>r[t.id]||"")]; });
+    return [i+1,stu.name,stu.city||"",Math.round(dc/NCHECK*100)+"%",...CHECKS.map(c=>r[c.id]?"✔":""),...TEXTS.map(t=>r[t.id]||""),(r.up11?"✔":""),(r.noshow?"✔":"")]; });
   return [head,...rows];
 }
 function exportWorkbook(grades,fname){
   const wb=XLSX.utils.book_new();
   grades.forEach(g=>{ const ws=XLSX.utils.aoa_to_sheet(gradeAOA(g));
-    ws['!cols']=[{wch:4},{wch:22},{wch:14},{wch:9},...Array(NCHECK).fill({wch:12}),...Array(TEXTS.length).fill({wch:20})];
+    ws['!cols']=[{wch:4},{wch:22},{wch:14},{wch:9},...Array(NCHECK).fill({wch:12}),...Array(TEXTS.length).fill({wch:20}),{wch:9},{wch:16}];
     ws['!sheetView']=[{rightToLeft:true}]; XLSX.utils.book_append_sheet(wb,ws,(LABEL[g]||g).slice(0,31)); });
   XLSX.writeFile(wb,fname);
 }
