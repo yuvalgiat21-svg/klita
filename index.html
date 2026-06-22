@@ -138,6 +138,9 @@
   .flag{font:600 11px/1.4 inherit;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer}
   .flag:hover{border-color:#cbd5d8}
   .flag.on.noshow{background:#FDE3E3;border-color:#f3b9b9;color:#c0392b}
+  .flag.finish{border-color:#bfe3c9;color:#1f8b4c}
+  .flag.finish:hover{border-color:#1f8b4c;background:#f0faf3}
+  .flag.finish.on{background:var(--ok);border-color:var(--ok);color:#fff}
 
   .cbx{appearance:none;-webkit-appearance:none;width:24px;height:24px;border-radius:7px;border:2px solid #C3D2D6;background:#fff;
     cursor:pointer;position:relative;transition:.12s;vertical-align:middle}
@@ -501,10 +504,11 @@ function rec(g,id){ if(!data[g][id]) data[g][id]={}; return data[g][id]; }
 function doneCount(g,id){ const r=data[g][id]||{}; let n=0; CHECKS.forEach(c=>{ if(r[c.id]) n++; }); return n; }
 function reqTextDone(g,id){ const r=data[g][id]||{}; let n=0; REQTEXTS.forEach(t=>{ if(((r[t.id]||"")+"").trim()!=="") n++; }); return n; }
 function progCount(g,id){ return doneCount(g,id)+reqTextDone(g,id); }
-function isFull(g,id){ return progCount(g,id)===NTOTAL; }
+function isFull(g,id){ return !!((data[g][id]||{}).intakeDone); }
+function dispPct(g,id){ return isFull(g,id)?100:Math.round(progCount(g,id)/NTOTAL*100); }
 function isNamed(s){ return (s.name||"").trim()!==""; }
 function gradeStats(g){ const list=roster[g]||[]; let full=0; list.forEach(s=>{ if(isNamed(s)&&isFull(g,s.id)) full++; }); return {total:list.length,full}; }
-function overall(){ let t=0,checks=0,filled=0; MY_GRADES.forEach(g=>{ (roster[g]||[]).forEach(s=>{ if(!isNamed(s)) return; t++; checks+=NTOTAL; filled+=progCount(g,s.id); }); }); return {total:t,pct:checks?Math.round(filled/checks*100):0}; }
+function overall(){ let t=0,checks=0,filled=0; MY_GRADES.forEach(g=>{ (roster[g]||[]).forEach(s=>{ if(!isNamed(s)) return; t++; checks+=NTOTAL; filled+=isFull(g,s.id)?NTOTAL:progCount(g,s.id); }); }); return {total:t,pct:checks?Math.round(filled/checks*100):0}; }
 
 /* ====== render ====== */
 function renderStats(){
@@ -551,7 +555,8 @@ function nameCell(stu){
   const by=r._by?`<span class="by">עודכן ע״י ${esc(r._by)}</span>`:"";
   const named=(stu.name||"").trim()!=="";
   const nm=named?esc(stu.name):`<span class="slot">— מקום פנוי —</span>`;
-  const flags=named?`<div class="flags"><button type="button" class="flag${r.noshow?' on noshow':''}" data-id="${stu.id}" data-f="noshow">לא הגיע לקליטה</button></div>`:'';
+  const finishBtn=`<button type="button" class="flag finish${r.intakeDone?' on':''}" data-id="${stu.id}" data-f="intakeDone">${r.intakeDone?'✓ הקליטה הושלמה':'סיום קליטה'}</button>`;
+  const flags=named?`<div class="flags">${finishBtn}<button type="button" class="flag${r.noshow?' on noshow':''}" data-id="${stu.id}" data-f="noshow">לא הגיע לקליטה</button></div>`:'';
   return `<td class="name"><div class="nm-row">${av}<div class="nm-txt">${nm}<span class="city">${esc(stu.city)}</span>${by}${flags}</div></div></td>`;
 }
 function pwFor(p){
@@ -588,7 +593,7 @@ function renderTable(){
     if(q && !stu.name.includes(q)) return;
     const dc=progCount(activeGrade,stu.id), isDone=isFull(activeGrade,stu.id);
     if(onlyOpen && isDone && !editing) return;
-    const r=data[activeGrade][stu.id]||{}, pct=Math.round(dc/NTOTAL*100);
+    const r=data[activeGrade][stu.id]||{}, pct=dispPct(activeGrade,stu.id);
     const checks=CHECKS.map(c=>`<td><input type="checkbox" class="cbx" data-id="${stu.id}" data-f="${c.id}" ${r[c.id]?'checked':''} aria-label="${c.label}"></td>`).join('');
     const texts=TEXTS.map(t=>`<td class="txt"><input type="text" data-id="${stu.id}" data-f="${t.id}" value="${esc(r[t.id])}" placeholder="${t.ph}"></td>`).join('');
     const rowCls=[isDone?'done':'', r.noshow?'noshow':''].filter(Boolean).join(' ');
@@ -612,7 +617,7 @@ function onCheck(e){
   const r=rec(activeGrade,id);
   const prevFull=isFull(activeGrade,id);
   r[f]=e.target.checked; stamp(r);
-  const tr=e.target.closest('tr'); const dc=progCount(activeGrade,id), pct=Math.round(dc/NTOTAL*100), nowFull=isFull(activeGrade,id);
+  const tr=e.target.closest('tr'); const pct=dispPct(activeGrade,id), nowFull=isFull(activeGrade,id);
   tr.querySelector('.ring').textContent=pct+'%'; tr.querySelector('.mb>i').style.width=pct+'%'; tr.classList.toggle('done',nowFull);
   if(!editing){ const by=tr.querySelector('.by'); const n=me();
     if(n){ if(by){by.textContent='עודכן ע״י '+n;} else { const s=document.createElement('span'); s.className='by'; s.textContent='עודכן ע״י '+n; tr.querySelector('td.name').appendChild(s);} } }
@@ -621,7 +626,7 @@ function onCheck(e){
 }
 let txtT;
 function onText(e){ const id=e.target.dataset.id,f=e.target.dataset.f; const r=rec(activeGrade,id); r[f]=e.target.value; stamp(r);
-  if(REQTEXTS.some(t=>t.id===f)){ const tr=e.target.closest('tr'); if(tr){ const pct=Math.round(progCount(activeGrade,id)/NTOTAL*100); const ring=tr.querySelector('.ring'); if(ring) ring.textContent=pct+'%'; const mb=tr.querySelector('.mb>i'); if(mb) mb.style.width=pct+'%'; tr.classList.toggle('done',isFull(activeGrade,id)); } }
+  if(REQTEXTS.some(t=>t.id===f)){ const tr=e.target.closest('tr'); if(tr){ const pct=dispPct(activeGrade,id); const ring=tr.querySelector('.ring'); if(ring) ring.textContent=pct+'%'; const mb=tr.querySelector('.mb>i'); if(mb) mb.style.width=pct+'%'; } }
   clearTimeout(txtT); txtT=setTimeout(()=>saveData(activeGrade),700); }
 function onTextChange(e){ if(!editing && REQTEXTS.some(t=>t.id===e.target.dataset.f)) setTimeout(()=>{ if(!editing && !tableInputFocused()) renderTable(); },0); }
 function onFlag(e){
@@ -662,15 +667,15 @@ document.getElementById('editBtn').onclick=async()=>{
 
 /* ====== export ====== */
 function gradeAOA(g){
-  const head=["#","שם התלמיד/ה","עיר","אחוז קליטה",...CHECKS.map(c=>c.label),...TEXTS.map(t=>t.label),"לא הגיע לקליטה"];
-  const rows=(roster[g]||[]).map((stu,i)=>{ const r=data[g][stu.id]||{}; const dc=progCount(g,stu.id);
-    return [i+1,stu.name,stu.city||"",Math.round(dc/NTOTAL*100)+"%",...CHECKS.map(c=>r[c.id]?"✔":""),...TEXTS.map(t=>r[t.id]||""),(r.noshow?"✔":"")]; });
+  const head=["#","שם התלמיד/ה","עיר","אחוז קליטה",...CHECKS.map(c=>c.label),...TEXTS.map(t=>t.label),"קליטה הושלמה","לא הגיע לקליטה"];
+  const rows=(roster[g]||[]).map((stu,i)=>{ const r=data[g][stu.id]||{}; const dc=isFull(g,stu.id)?NTOTAL:progCount(g,stu.id);
+    return [i+1,stu.name,stu.city||"",Math.round(dc/NTOTAL*100)+"%",...CHECKS.map(c=>r[c.id]?"✔":""),...TEXTS.map(t=>r[t.id]||""),(isFull(g,stu.id)?"✔":""),(r.noshow?"✔":"")]; });
   return [head,...rows];
 }
 function exportWorkbook(grades,fname){
   const wb=XLSX.utils.book_new();
   grades.forEach(g=>{ const ws=XLSX.utils.aoa_to_sheet(gradeAOA(g));
-    ws['!cols']=[{wch:4},{wch:22},{wch:14},{wch:9},...Array(NCHECK).fill({wch:12}),...Array(TEXTS.length).fill({wch:20}),{wch:16}];
+    ws['!cols']=[{wch:4},{wch:22},{wch:14},{wch:9},...Array(NCHECK).fill({wch:12}),...Array(TEXTS.length).fill({wch:20}),{wch:14},{wch:16}];
     ws['!sheetView']=[{rightToLeft:true}]; XLSX.utils.book_append_sheet(wb,ws,(LABEL[g]||g).slice(0,31)); });
   XLSX.writeFile(wb,fname);
 }
