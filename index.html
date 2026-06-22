@@ -85,6 +85,12 @@
   .tab.tab-admin{background:#FCEFE9;border-color:#f3c9b8;color:#C2540F}
   .tab.tab-admin:hover{border-color:#C2540F}
   .tab.tab-admin.active{background:#C2540F;color:#fff;border-color:#C2540F}
+  .tab.tab-junior{background:#EAF7EE;border-color:#C5E6CF;color:#2E7D4F}
+  .tab.tab-junior:hover{border-color:#2E7D4F}
+  .tab.tab-junior.active{background:#2E7D4F;color:#fff;border-color:#2E7D4F}
+  .tab.tab-mid{background:#F0ECFB;border-color:#D6CBF0;color:#6A4BB0}
+  .tab.tab-mid:hover{border-color:#6A4BB0}
+  .tab.tab-mid.active{background:#6A4BB0;color:#fff;border-color:#6A4BB0}
 
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
   .search{flex:1 1 220px;position:relative;min-width:170px}
@@ -541,7 +547,8 @@ function renderStats(){
 function renderTabs(){
   const el=document.getElementById('tabs');
   const mine=GRADES.filter(g=>MY_GRADES.includes(g));
-  const cls=g=>(g==='admin'?'tab-admin ':(ACAD.has(g)?'tab-acad ':''));
+  const JUNIOR=new Set(["ז","ח"]), MID=new Set(["ט","י","יא"]);
+  const cls=g=>(g==='admin'?'tab-admin ':(ACAD.has(g)?'tab-acad ':(JUNIOR.has(g)?'tab-junior ':(MID.has(g)?'tab-mid ':''))));
   const btn=g=>{ const s=gradeStats(g);
     return `<button class="tab ${cls(g)}${g===activeGrade?'active':''}" data-g="${g}">${LABEL[g]} <span class="cnt">${s.full}/${s.total}</span></button>`; };
   const grades=mine.filter(g=>!ACAD.has(g)).map(btn).join('');
