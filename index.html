@@ -132,14 +132,11 @@
   .mini .mb{flex:0 0 46px;height:7px;border-radius:999px;background:var(--mist);overflow:hidden}
   .mini .mb>i{display:block;height:100%;background:linear-gradient(90deg,var(--sea),var(--sand))}
   tr.done td.name{box-shadow:1px 0 0 #EEF3F4, inset 4px 0 0 var(--ok)}
-  tr.up11 td{background:#F3F4FF}
-  tr.up11 td.name{background:#F3F4FF;box-shadow:1px 0 0 #EEF3F4, inset 4px 0 0 #6366f1}
   tr.noshow td{background:#FCE8E8}
   tr.noshow td.name{background:#FCE8E8;box-shadow:1px 0 0 #EEF3F4, inset 4px 0 0 #e23b3b}
   .flags{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
   .flag{font:600 11px/1.4 inherit;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer}
   .flag:hover{border-color:#cbd5d8}
-  .flag.on.up11{background:#EEF0FF;border-color:#c7ccf5;color:#4646c4}
   .flag.on.noshow{background:#FDE3E3;border-color:#f3b9b9;color:#c0392b}
 
   .cbx{appearance:none;-webkit-appearance:none;width:24px;height:24px;border-radius:7px;border:2px solid #C3D2D6;background:#fff;
@@ -554,8 +551,7 @@ function nameCell(stu){
   const by=r._by?`<span class="by">עודכן ע״י ${esc(r._by)}</span>`:"";
   const named=(stu.name||"").trim()!=="";
   const nm=named?esc(stu.name):`<span class="slot">— מקום פנוי —</span>`;
-  const up11Chip=(activeGrade==='י')?`<button type="button" class="flag${r.up11?' on up11':''}" data-id="${stu.id}" data-f="up11">עולה ליא</button>`:'';
-  const flags=named?`<div class="flags">${up11Chip}<button type="button" class="flag${r.noshow?' on noshow':''}" data-id="${stu.id}" data-f="noshow">לא הגיע לקליטה</button></div>`:'';
+  const flags=named?`<div class="flags"><button type="button" class="flag${r.noshow?' on noshow':''}" data-id="${stu.id}" data-f="noshow">לא הגיע לקליטה</button></div>`:'';
   return `<td class="name"><div class="nm-row">${av}<div class="nm-txt">${nm}<span class="city">${esc(stu.city)}</span>${by}${flags}</div></div></td>`;
 }
 function pwFor(p){
@@ -595,7 +591,7 @@ function renderTable(){
     const r=data[activeGrade][stu.id]||{}, pct=Math.round(dc/NTOTAL*100);
     const checks=CHECKS.map(c=>`<td><input type="checkbox" class="cbx" data-id="${stu.id}" data-f="${c.id}" ${r[c.id]?'checked':''} aria-label="${c.label}"></td>`).join('');
     const texts=TEXTS.map(t=>`<td class="txt"><input type="text" data-id="${stu.id}" data-f="${t.id}" value="${esc(r[t.id])}" placeholder="${t.ph}"></td>`).join('');
-    const rowCls=[isDone?'done':'', r.noshow?'noshow':'', (r.up11&&activeGrade==='י')?'up11':''].filter(Boolean).join(' ');
+    const rowCls=[isDone?'done':'', r.noshow?'noshow':''].filter(Boolean).join(' ');
     rows+=`<tr class="${rowCls}"><td class="idx">${pos+1}</td>${nameCell(stu)}<td><div class="mini"><span class="ring">${pct}%</span><span class="mb"><i style="width:${pct}%"></i></span></div></td>${checks}${texts}</tr>`;
   });
   tb.innerHTML=rows||`<tr><td colspan="${3+NCHECK+TEXTS.length}" class="empty">אין תלמידים להצגה בתצוגה הזו.</td></tr>`;
@@ -666,15 +662,15 @@ document.getElementById('editBtn').onclick=async()=>{
 
 /* ====== export ====== */
 function gradeAOA(g){
-  const head=["#","שם התלמיד/ה","עיר","אחוז קליטה",...CHECKS.map(c=>c.label),...TEXTS.map(t=>t.label),"עולה ליא","לא הגיע לקליטה"];
+  const head=["#","שם התלמיד/ה","עיר","אחוז קליטה",...CHECKS.map(c=>c.label),...TEXTS.map(t=>t.label),"לא הגיע לקליטה"];
   const rows=(roster[g]||[]).map((stu,i)=>{ const r=data[g][stu.id]||{}; const dc=progCount(g,stu.id);
-    return [i+1,stu.name,stu.city||"",Math.round(dc/NTOTAL*100)+"%",...CHECKS.map(c=>r[c.id]?"✔":""),...TEXTS.map(t=>r[t.id]||""),(r.up11?"✔":""),(r.noshow?"✔":"")]; });
+    return [i+1,stu.name,stu.city||"",Math.round(dc/NTOTAL*100)+"%",...CHECKS.map(c=>r[c.id]?"✔":""),...TEXTS.map(t=>r[t.id]||""),(r.noshow?"✔":"")]; });
   return [head,...rows];
 }
 function exportWorkbook(grades,fname){
   const wb=XLSX.utils.book_new();
   grades.forEach(g=>{ const ws=XLSX.utils.aoa_to_sheet(gradeAOA(g));
-    ws['!cols']=[{wch:4},{wch:22},{wch:14},{wch:9},...Array(NCHECK).fill({wch:12}),...Array(TEXTS.length).fill({wch:20}),{wch:9},{wch:16}];
+    ws['!cols']=[{wch:4},{wch:22},{wch:14},{wch:9},...Array(NCHECK).fill({wch:12}),...Array(TEXTS.length).fill({wch:20}),{wch:16}];
     ws['!sheetView']=[{rightToLeft:true}]; XLSX.utils.book_append_sheet(wb,ws,(LABEL[g]||g).slice(0,31)); });
   XLSX.writeFile(wb,fname);
 }
