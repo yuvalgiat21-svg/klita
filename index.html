@@ -104,19 +104,19 @@
 
   .tablecard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
   .scroll{overflow-x:auto}
-  table{border-collapse:separate;border-spacing:0;width:100%;min-width:1000px}
-  thead th{background:#F3F8F9;color:var(--sea-deep);font-size:11.5px;font-weight:700;padding:10px 6px;border-bottom:2px solid var(--line);
-    text-align:center;vertical-align:top;position:sticky;top:0;z-index:3;line-height:1.25}
+  table{border-collapse:separate;border-spacing:0;width:100%;min-width:860px}
+  thead th{background:#F3F8F9;color:var(--sea-deep);font-size:11px;font-weight:700;padding:8px 4px;border-bottom:2px solid var(--line);
+    text-align:center;vertical-align:top;position:sticky;top:0;z-index:3;line-height:1.2;white-space:normal;word-break:break-word}
   thead th .grp{display:block;font-size:10px;color:var(--sea-deep);font-weight:800;margin-bottom:3px;letter-spacing:.3px}
-  th.col-idx{width:42px}
-  th.col-name{text-align:right;min-width:215px;position:sticky;right:0;z-index:4;background:#F3F8F9;padding-right:14px}
-  th.col-prog{width:96px}
-  th.col-chk{width:60px}
-  th.col-txt{min-width:130px;text-align:right}
-  tbody td{padding:7px 6px;border-bottom:1px solid #EEF3F4;text-align:center;font-size:14px;vertical-align:middle}
+  th.col-idx{width:34px}
+  th.col-name{text-align:right;min-width:180px;position:sticky;right:0;z-index:4;background:#F3F8F9;padding-right:10px}
+  th.col-prog{width:84px}
+  th.col-chk{width:50px}
+  th.col-txt{min-width:100px;text-align:right}
+  tbody td{padding:6px 4px;border-bottom:1px solid #EEF3F4;text-align:center;font-size:14px;vertical-align:middle}
   tbody tr:hover td{background:#FAFCFC}
   td.idx{color:var(--muted);font-size:12.5px;font-weight:600}
-  td.name{text-align:right;font-weight:700;position:sticky;right:0;background:#fff;z-index:2;padding-right:14px;box-shadow:1px 0 0 #EEF3F4}
+  td.name{text-align:right;font-weight:700;position:sticky;right:0;background:#fff;z-index:2;padding-right:10px;box-shadow:1px 0 0 #EEF3F4}
   tbody tr:hover td.name{background:#FAFCFC}
   td.name .city{display:block;font-size:11.5px;color:var(--muted);font-weight:500;margin-top:1px}
   td.name .by{display:block;font-size:10.5px;color:#9aa;font-weight:500;margin-top:2px}
@@ -386,13 +386,15 @@ const CHECKS = [
   {id:"c8",grp:"ציוד אישי",label:"רחצה ומגבת"},
 ];
 const TEXTS = [
-  {id:"email",label:"מייל למרכז למידה",ph:"כתובת מייל"},
-  {id:"medical",label:"רפואי (תרופות / אלרגיות / ריטלין + אריה)",ph:"פרטים רפואיים"},
-  {id:"exits",label:"יציאות מיוחדות במחנה",ph:"יציאות"},
-  {id:"transport",label:"נסיעה הביתה בסיום",ph:"איך נוסע/ת"},
+  {id:"email",label:"מייל למרכז למידה",ph:"כתובת מייל",req:true},
+  {id:"medical",label:"רפואי (תרופות / אלרגיות / ריטלין + אריה)",ph:"פרטים רפואיים",req:true},
+  {id:"exits",label:"יציאות מיוחדות במחנה",ph:"יציאות",req:true},
+  {id:"transport",label:"נסיעה הביתה בסיום",ph:"איך נוסע/ת",req:true},
   {id:"notes",label:"הערות",ph:"הערות חופשי"},
 ];
 const NCHECK = CHECKS.length;
+const REQTEXTS = TEXTS.filter(t=>t.req);
+const NTOTAL = NCHECK + REQTEXTS.length;
 const RKEY = g => "myam_roster_"+(ACAD.has(g)?"v3":"v2")+":"+g;
 const DKEY = g => "myam_intake_"+(ACAD.has(g)?"v3":"v2")+":"+g;
 
@@ -500,9 +502,12 @@ function setLocal(){ dotEl().className='dot local'; txtEl().textContent='מצב 
 /* ====== helpers ====== */
 function rec(g,id){ if(!data[g][id]) data[g][id]={}; return data[g][id]; }
 function doneCount(g,id){ const r=data[g][id]||{}; let n=0; CHECKS.forEach(c=>{ if(r[c.id]) n++; }); return n; }
+function reqTextDone(g,id){ const r=data[g][id]||{}; let n=0; REQTEXTS.forEach(t=>{ if(((r[t.id]||"")+"").trim()!=="") n++; }); return n; }
+function progCount(g,id){ return doneCount(g,id)+reqTextDone(g,id); }
+function isFull(g,id){ return progCount(g,id)===NTOTAL; }
 function isNamed(s){ return (s.name||"").trim()!==""; }
-function gradeStats(g){ const list=roster[g]||[]; let full=0; list.forEach(s=>{ if(isNamed(s)&&doneCount(g,s.id)===NCHECK) full++; }); return {total:list.length,full}; }
-function overall(){ let t=0,checks=0,filled=0; MY_GRADES.forEach(g=>{ (roster[g]||[]).forEach(s=>{ if(!isNamed(s)) return; t++; checks+=NCHECK; filled+=doneCount(g,s.id); }); }); return {total:t,pct:checks?Math.round(filled/checks*100):0}; }
+function gradeStats(g){ const list=roster[g]||[]; let full=0; list.forEach(s=>{ if(isNamed(s)&&isFull(g,s.id)) full++; }); return {total:list.length,full}; }
+function overall(){ let t=0,checks=0,filled=0; MY_GRADES.forEach(g=>{ (roster[g]||[]).forEach(s=>{ if(!isNamed(s)) return; t++; checks+=NTOTAL; filled+=progCount(g,s.id); }); }); return {total:t,pct:checks?Math.round(filled/checks*100):0}; }
 
 /* ====== render ====== */
 function renderStats(){
@@ -572,15 +577,22 @@ function renderTable(){
   if(isPerms){ renderPerms(); return; }
   renderHead();
   const tb=document.getElementById('tbody');
-  const list=roster[activeGrade]||[];
+  let list=roster[activeGrade]||[];
+  if(!editing){
+    list=list.map((stu,i)=>({stu,i})).sort((a,b)=>{
+      const fa=isFull(activeGrade,a.stu.id)?0:1;
+      const fb=isFull(activeGrade,b.stu.id)?0:1;
+      return fa!==fb ? fa-fb : a.i-b.i;
+    }).map(x=>x.stu);
+  }
   const q=(document.getElementById('searchInput').value||"").trim();
   const onlyOpen=document.getElementById('onlyOpen').checked;
   let rows="";
   list.forEach((stu,pos)=>{
     if(q && !stu.name.includes(q)) return;
-    const dc=doneCount(activeGrade,stu.id), isDone=dc===NCHECK;
+    const dc=progCount(activeGrade,stu.id), isDone=isFull(activeGrade,stu.id);
     if(onlyOpen && isDone && !editing) return;
-    const r=data[activeGrade][stu.id]||{}, pct=Math.round(dc/NCHECK*100);
+    const r=data[activeGrade][stu.id]||{}, pct=Math.round(dc/NTOTAL*100);
     const checks=CHECKS.map(c=>`<td><input type="checkbox" class="cbx" data-id="${stu.id}" data-f="${c.id}" ${r[c.id]?'checked':''} aria-label="${c.label}"></td>`).join('');
     const texts=TEXTS.map(t=>`<td class="txt"><input type="text" data-id="${stu.id}" data-f="${t.id}" value="${esc(r[t.id])}" placeholder="${t.ph}"></td>`).join('');
     const rowCls=[isDone?'done':'', r.noshow?'noshow':'', (r.up11&&activeGrade==='י')?'up11':''].filter(Boolean).join(' ');
@@ -588,7 +600,7 @@ function renderTable(){
   });
   tb.innerHTML=rows||`<tr><td colspan="${3+NCHECK+TEXTS.length}" class="empty">אין תלמידים להצגה בתצוגה הזו.</td></tr>`;
   tb.querySelectorAll('input.cbx').forEach(c=>c.onchange=onCheck);
-  tb.querySelectorAll('td.txt input').forEach(c=>c.oninput=onText);
+  tb.querySelectorAll('td.txt input').forEach(c=>{ c.oninput=onText; c.onchange=onTextChange; });
   tb.querySelectorAll('.flag').forEach(b=>b.onclick=onFlag);
   if(editing){
     tb.querySelectorAll('.ename').forEach(c=>c.oninput=onRename);
@@ -601,16 +613,21 @@ function renderTable(){
 function stamp(r){ const n=me(); if(n) r._by=n; r._at=Date.now(); }
 function onCheck(e){
   const id=e.target.dataset.id, f=e.target.dataset.f;
-  const r=rec(activeGrade,id); r[f]=e.target.checked; stamp(r);
-  const tr=e.target.closest('tr'); const dc=doneCount(activeGrade,id), pct=Math.round(dc/NCHECK*100);
-  tr.querySelector('.ring').textContent=pct+'%'; tr.querySelector('.mb>i').style.width=pct+'%'; tr.classList.toggle('done',dc===NCHECK);
+  const r=rec(activeGrade,id);
+  const prevFull=isFull(activeGrade,id);
+  r[f]=e.target.checked; stamp(r);
+  const tr=e.target.closest('tr'); const dc=progCount(activeGrade,id), pct=Math.round(dc/NTOTAL*100), nowFull=isFull(activeGrade,id);
+  tr.querySelector('.ring').textContent=pct+'%'; tr.querySelector('.mb>i').style.width=pct+'%'; tr.classList.toggle('done',nowFull);
   if(!editing){ const by=tr.querySelector('.by'); const n=me();
     if(n){ if(by){by.textContent='עודכן ע״י '+n;} else { const s=document.createElement('span'); s.className='by'; s.textContent='עודכן ע״י '+n; tr.querySelector('td.name').appendChild(s);} } }
   saveData(activeGrade);
+  if(!editing && prevFull!==nowFull) renderTable();
 }
 let txtT;
 function onText(e){ const id=e.target.dataset.id,f=e.target.dataset.f; const r=rec(activeGrade,id); r[f]=e.target.value; stamp(r);
+  if(REQTEXTS.some(t=>t.id===f)){ const tr=e.target.closest('tr'); if(tr){ const pct=Math.round(progCount(activeGrade,id)/NTOTAL*100); const ring=tr.querySelector('.ring'); if(ring) ring.textContent=pct+'%'; const mb=tr.querySelector('.mb>i'); if(mb) mb.style.width=pct+'%'; tr.classList.toggle('done',isFull(activeGrade,id)); } }
   clearTimeout(txtT); txtT=setTimeout(()=>saveData(activeGrade),700); }
+function onTextChange(e){ if(!editing && REQTEXTS.some(t=>t.id===e.target.dataset.f)) setTimeout(()=>{ if(!editing && !tableInputFocused()) renderTable(); },0); }
 function onFlag(e){
   const id=e.currentTarget.dataset.id, f=e.currentTarget.dataset.f;
   const r=rec(activeGrade,id); r[f]=!r[f]; stamp(r);
@@ -650,8 +667,8 @@ document.getElementById('editBtn').onclick=async()=>{
 /* ====== export ====== */
 function gradeAOA(g){
   const head=["#","שם התלמיד/ה","עיר","אחוז קליטה",...CHECKS.map(c=>c.label),...TEXTS.map(t=>t.label),"עולה ליא","לא הגיע לקליטה"];
-  const rows=(roster[g]||[]).map((stu,i)=>{ const r=data[g][stu.id]||{}; const dc=doneCount(g,stu.id);
-    return [i+1,stu.name,stu.city||"",Math.round(dc/NCHECK*100)+"%",...CHECKS.map(c=>r[c.id]?"✔":""),...TEXTS.map(t=>r[t.id]||""),(r.up11?"✔":""),(r.noshow?"✔":"")]; });
+  const rows=(roster[g]||[]).map((stu,i)=>{ const r=data[g][stu.id]||{}; const dc=progCount(g,stu.id);
+    return [i+1,stu.name,stu.city||"",Math.round(dc/NTOTAL*100)+"%",...CHECKS.map(c=>r[c.id]?"✔":""),...TEXTS.map(t=>r[t.id]||""),(r.up11?"✔":""),(r.noshow?"✔":"")]; });
   return [head,...rows];
 }
 function exportWorkbook(grades,fname){
