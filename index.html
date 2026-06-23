@@ -174,11 +174,11 @@
   .cbx:checked::after{content:"";position:absolute;inset:0;background:no-repeat center/13px url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>")}
   .cbx:focus-visible{outline:3px solid var(--sand);outline-offset:2px}
 
-  td.txt{text-align:right}
-  td.txt input{width:100%;border:1px solid transparent;background:transparent;border-radius:8px;padding:6px 8px;font-family:inherit;font-size:13px;color:var(--ink);outline:none}
-  td.txt input:hover{background:#F5F9FA}
-  td.txt input:focus{background:#fff;border-color:var(--sea)}
-  td.txt input::placeholder{color:#b9c6ca}
+  td.txt{text-align:right;vertical-align:top}
+  td.txt .tin{width:100%;min-width:120px;height:32px;resize:none;border:1px solid transparent;background:transparent;border-radius:8px;padding:6px 8px;font-family:inherit;font-size:13px;line-height:1.25;color:var(--ink);outline:none;white-space:nowrap;overflow:hidden;transition:height .12s ease, box-shadow .12s ease, background .12s ease}
+  td.txt .tin:hover{background:#F5F9FA}
+  td.txt .tin:focus{background:#fff;border-color:var(--sea);height:96px;white-space:normal;overflow:auto;box-shadow:0 6px 18px rgba(21,103,125,.20);font-size:14px;position:relative;z-index:5}
+  td.txt .tin::placeholder{color:#b9c6ca}
 
   /* edit cell */
   .editcell .ec{display:flex;align-items:center;gap:7px}
@@ -679,13 +679,13 @@ function renderTable(){
     if(onlyOpen && isDone && !editing) return;
     const r=data[activeGrade][stu.id]||{}, pct=dispPct(activeGrade,stu.id);
     const checks=CHECKS.map(c=>`<td><input type="checkbox" class="cbx" data-id="${stu.id}" data-f="${c.id}" ${r[c.id]?'checked':''} aria-label="${c.label}"></td>`).join('');
-    const texts=TEXTS.map(t=>`<td class="txt"><input type="text" data-id="${stu.id}" data-f="${t.id}" value="${esc(r[t.id])}" placeholder="${t.ph}"></td>`).join('');
+    const texts=TEXTS.map(t=>`<td class="txt"><textarea rows="1" class="tin" data-id="${stu.id}" data-f="${t.id}" placeholder="${t.ph}">${esc(r[t.id])}</textarea></td>`).join('');
     const rowCls=[isDone?'done':'', r.noshow?'noshow':''].filter(Boolean).join(' ');
     rows+=`<tr class="${rowCls}"><td class="idx">${pos+1}</td>${nameCell(stu)}<td><div class="mini"><span class="ring">${pct}%</span><span class="mb"><i style="width:${pct}%"></i></span></div></td>${checks}${texts}</tr>`;
   });
   tb.innerHTML=rows||`<tr><td colspan="${3+NCHECK+TEXTS.length}" class="empty">אין תלמידים להצגה בתצוגה הזו.</td></tr>`;
   tb.querySelectorAll('input.cbx').forEach(c=>c.onchange=onCheck);
-  tb.querySelectorAll('td.txt input').forEach(c=>{ c.oninput=onText; c.onchange=onTextChange; });
+  tb.querySelectorAll('td.txt textarea').forEach(c=>{ c.oninput=onText; c.onchange=onTextChange; });
   tb.querySelectorAll('.flag').forEach(b=>b.onclick=onFlag);
   if(editing){
     tb.querySelectorAll('.ename').forEach(c=>c.oninput=onRename);
