@@ -149,6 +149,9 @@
   .nm-row{display:flex;align-items:center;gap:10px}
   .nm-txt{min-width:0}
   .avatar{width:38px;height:38px;border-radius:10px;object-fit:cover;flex:0 0 auto;border:1px solid var(--line);background:#eef3f4;display:grid;place-items:center;overflow:hidden}
+  .avbtn{position:relative;border:none;background:none;padding:0;cursor:pointer;display:inline-flex;border-radius:10px;flex:0 0 auto}
+  .avbtn .avadd{position:absolute;bottom:-3px;left:-3px;width:18px;height:18px;border-radius:50%;background:var(--sea);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.3);line-height:1}
+  .avbtn:hover{filter:brightness(.96)}
   .avatar.ph{font-size:13px;font-weight:800;color:#7d9098}
   .editcell .ec .avatar{width:34px;height:34px}
 
@@ -311,6 +314,7 @@
   </footer>
 </div>
 
+<input type="file" id="avFile" accept="image/*" style="display:none">
 <div id="noshowModal" class="modal-back">
   <div class="modal">
     <div class="modal-head">
@@ -460,7 +464,8 @@ let _photoNameIdx=null;
 function photoByName(name){ if(!_photoNameIdx){ _photoNameIdx={}; for(const k in PHOTOS){ const v=PHOTOS[k]; if(v) _photoNameIdx[normName(k)]=v; } } return _photoNameIdx[normName(name)]; }
 function avatarHTML(stu){
   const _nm=(stu.name||"").trim(); const _nmK=_nm.replace(/\s+/g," ");
-  const p=PHOTOS[stu.id]||PHOTOS[_nmK]||PHOTOS[_nm]||photoByName(_nm);
+  const _st=(activeGrade&&data[activeGrade]&&data[activeGrade][stu.id]&&data[activeGrade][stu.id].photo)||null;
+  const p=_st||PHOTOS[stu.id]||PHOTOS[_nmK]||PHOTOS[_nm]||photoByName(_nm);
   if(p) return `<img class="avatar" src="${p}" alt="" loading="lazy">`;
   const nm=(stu.name||"").trim();
   if(nm){ const parts=nm.split(/\s+/); const init=(parts[0]?parts[0][0]:"")+(parts[1]?parts[1][0]:""); return `<span class="avatar ph">${esc(init)}</span>`; }
@@ -592,6 +597,19 @@ function renderStats(){
     <div class="stat"><div class="k">מסגרות</div><div class="v">${MY_GRADES.length} <small>שכבות</small></div></div>`;
   const _ns=document.getElementById('noshowStat'); if(_ns) _ns.onclick=openNoshow;
 }
+let _avPendingId=null;
+function fileToAvatar(file, cb){
+  const rd=new FileReader();
+  rd.onload=()=>{ const img=new Image(); img.onload=()=>{
+    const s=Math.min(img.width,img.height);
+    const sx=(img.width-s)/2, sy=(img.height-s)/2;
+    const c=document.createElement("canvas"); c.width=96; c.height=96;
+    const ctx=c.getContext("2d"); ctx.drawImage(img, sx, sy, s, s, 0,0,96,96);
+    try{ cb(c.toDataURL("image/jpeg",0.72)); }catch(err){ alert("לא הצלחתי לעבד את התמונה."); }
+  }; img.onerror=()=>alert("קובץ התמונה לא תקין."); img.src=rd.result; };
+  rd.onerror=()=>alert("לא הצלחתי לקרוא את הקובץ."); rd.readAsDataURL(file);
+}
+function onAvatarPick(e){ _avPendingId=e.currentTarget.dataset.id; const inp=document.getElementById("avFile"); inp.value=""; inp.click(); }
 function renderNoshowModal(){
   const body=document.getElementById('noshowBody'); let html=''; let count=0;
   MY_GRADES.forEach(g=>{
@@ -634,7 +652,7 @@ function nameCell(stu){
   if(editing){
     return `<td class="name editcell">
       <div class="ec">
-        ${av}
+        <button type="button" class="avbtn" data-id="${stu.id}" title="הוסף/שנה תמונה">${av}<span class="avadd">＋</span></button>
         <button class="del" data-id="${stu.id}" title="הסר חניך/ה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></button>
         <input class="ename" data-id="${stu.id}" value="${esc(stu.name)}" placeholder="שם מלא">
       </div>
@@ -697,6 +715,7 @@ function renderTable(){
     tb.querySelectorAll('.ename').forEach(c=>c.oninput=onRename);
     tb.querySelectorAll('.ecity').forEach(c=>c.oninput=onCity);
     tb.querySelectorAll('.del').forEach(b=>b.onclick=onDelete);
+    tb.querySelectorAll('.avbtn').forEach(b=>b.onclick=onAvatarPick);
   }
 }
 
@@ -798,6 +817,7 @@ document.getElementById('searchInput').oninput=renderTable;
 document.getElementById('onlyOpen').onchange=renderTable;
 document.getElementById('refreshBtn').onclick=async()=>{ setSaving(); await loadAll(); renderStats(); renderTabs(); renderTable(); setSaved(); };
 document.getElementById('noshowClose').onclick=closeNoshow;
+document.getElementById('avFile').onchange=function(){ const fl=this.files&&this.files[0]; if(!fl||!_avPendingId) return; fileToAvatar(fl, url=>{ const r=rec(activeGrade,_avPendingId); r.photo=url; stamp(r); saveData(activeGrade); renderTable(); }); };
 document.getElementById('noshowModal').addEventListener('click',e=>{ if(e.target.id==='noshowModal') closeNoshow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeNoshow(); });
 function exportNoshow(){
