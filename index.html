@@ -455,9 +455,12 @@ GRADES.forEach(g=>{ roster[g]=[]; deleted[g]=[]; data[g]={}; });
 const me = ()=> ((document.getElementById('whoInput').value||"").trim() || MY_NAME);
 const esc = s => (s||"").replace(/"/g,'&quot;').replace(/</g,'&lt;');
 const newId = ()=> "x"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function normName(s){ return (s||"").replace(/[\u0591-\u05C7]/g,"").replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g,"").replace(/\u00A0/g," ").replace(/\s+/g," ").trim(); }
+let _photoNameIdx=null;
+function photoByName(name){ if(!_photoNameIdx){ _photoNameIdx={}; for(const k in PHOTOS){ const v=PHOTOS[k]; if(v) _photoNameIdx[normName(k)]=v; } } return _photoNameIdx[normName(name)]; }
 function avatarHTML(stu){
   const _nm=(stu.name||"").trim(); const _nmK=_nm.replace(/\s+/g," ");
-  const p=PHOTOS[stu.id]||PHOTOS[_nmK]||PHOTOS[_nm];
+  const p=PHOTOS[stu.id]||PHOTOS[_nmK]||PHOTOS[_nm]||photoByName(_nm);
   if(p) return `<img class="avatar" src="${p}" alt="" loading="lazy">`;
   const nm=(stu.name||"").trim();
   if(nm){ const parts=nm.split(/\s+/); const init=(parts[0]?parts[0][0]:"")+(parts[1]?parts[1][0]:""); return `<span class="avatar ph">${esc(init)}</span>`; }
