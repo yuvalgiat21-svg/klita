@@ -455,7 +455,7 @@ GRADES.forEach(g=>{ roster[g]=[]; deleted[g]=[]; data[g]={}; });
 const me = ()=> ((document.getElementById('whoInput').value||"").trim() || MY_NAME);
 const esc = s => (s||"").replace(/"/g,'&quot;').replace(/</g,'&lt;');
 const newId = ()=> "x"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-function normName(s){ return (s||"").replace(/[\u0591-\u05C7]/g,"").replace(/[\u00AD\u200B-\u200F\u2060\u202A-\u202E\u2066-\u2069\uFEFF]/g,"").replace(/\u00A0/g," ").replace(/\s+/g," ").trim(); }
+function normName(s){ return (s||"").normalize("NFKC").replace(/[^\p{L}\p{N}]/gu,"").toLowerCase(); }
 let _photoNameIdx=null;
 function photoByName(name){ if(!_photoNameIdx){ _photoNameIdx={}; for(const k in PHOTOS){ const v=PHOTOS[k]; if(v) _photoNameIdx[normName(k)]=v; } } return _photoNameIdx[normName(name)]; }
 function avatarHTML(stu){
@@ -503,6 +503,9 @@ function trimAcademyEmpties(g){
 }
 async function cleanupAcademyQuotas(){
   for(const g of MY_GRADES){ if(trimAcademyEmpties(g)){ try{ await commitRoster(g); }catch(e){ console.error("trim",g,e); } } }
+}
+function reconcileNoshow(){
+  MY_GRADES.forEach(g=>{ let ch=false; (roster[g]||[]).forEach(s=>{ const r=data[g]&&data[g][s.id]; if(r && r.noshow && r.intakeDone){ r.noshow=false; ch=true; } }); if(ch){ try{ saveData(g); }catch(e){ console.error("reconcile",g,e); } } });
 }
 async function loadAll(){ try{ await Promise.all(MY_GRADES.map(loadGrade)); }catch(e){ storageOK=false; } }
 
@@ -580,7 +583,7 @@ function overall(){ let t=0,checks=0,filled=0; MY_GRADES.forEach(g=>{ (roster[g]
 /* ====== render ====== */
 function renderStats(){
   const o=overall(); let fullStudents=0, noShow=0;
-  MY_GRADES.forEach(g=>{ fullStudents+=gradeStats(g).full; (roster[g]||[]).forEach(s=>{ if(isNamed(s) && (data[g][s.id]||{}).noshow) noShow++; }); });
+  MY_GRADES.forEach(g=>{ fullStudents+=gradeStats(g).full; (roster[g]||[]).forEach(s=>{ const _r=data[g][s.id]||{}; if(isNamed(s) && _r.noshow && !_r.intakeDone) noShow++; }); });
   document.getElementById('stats').innerHTML=`
     <div class="stat"><div class="k">סה״כ תלמידים</div><div class="v">${o.total}</div></div>
     <div class="stat"><div class="k">הושלמה קליטה מלאה</div><div class="v">${fullStudents} <small>/ ${o.total}</small></div></div>
@@ -592,7 +595,7 @@ function renderStats(){
 function renderNoshowModal(){
   const body=document.getElementById('noshowBody'); let html=''; let count=0;
   MY_GRADES.forEach(g=>{
-    const items=(roster[g]||[]).filter(s=>isNamed(s) && (data[g][s.id]||{}).noshow);
+    const items=(roster[g]||[]).filter(s=>{ const _r=data[g][s.id]||{}; return isNamed(s) && _r.noshow && !_r.intakeDone; });
     if(!items.length) return;
     html+=`<div class="ns-grade">${esc(LABEL[g])} (${items.length})</div>`;
     items.forEach(s=>{ count++;
@@ -683,7 +686,7 @@ function renderTable(){
     const r=data[activeGrade][stu.id]||{}, pct=dispPct(activeGrade,stu.id);
     const checks=CHECKS.map(c=>`<td><input type="checkbox" class="cbx" data-id="${stu.id}" data-f="${c.id}" ${r[c.id]?'checked':''} aria-label="${c.label}"></td>`).join('');
     const texts=TEXTS.map(t=>`<td class="txt"><textarea rows="1" class="tin" data-id="${stu.id}" data-f="${t.id}" placeholder="${t.ph}">${esc(r[t.id])}</textarea></td>`).join('');
-    const rowCls=[isDone?'done':'', r.noshow?'noshow':''].filter(Boolean).join(' ');
+    const rowCls=[isDone?'done':'', (r.noshow&&!isDone)?'noshow':''].filter(Boolean).join(' ');
     rows+=`<tr class="${rowCls}"><td class="idx">${pos+1}</td>${nameCell(stu)}<td><div class="mini"><span class="ring">${pct}%</span><span class="mb"><i style="width:${pct}%"></i></span></div></td>${checks}${texts}</tr>`;
   });
   tb.innerHTML=rows||`<tr><td colspan="${3+NCHECK+TEXTS.length}" class="empty">אין תלמידים להצגה בתצוגה הזו.</td></tr>`;
@@ -718,7 +721,10 @@ function onText(e){ const id=e.target.dataset.id,f=e.target.dataset.f; const r=r
 function onTextChange(e){ if(!editing && REQTEXTS.some(t=>t.id===e.target.dataset.f)) setTimeout(()=>{ if(!editing && !tableInputFocused()) renderTable(); },0); }
 function onFlag(e){
   const id=e.currentTarget.dataset.id, f=e.currentTarget.dataset.f;
-  const r=rec(activeGrade,id); r[f]=!r[f]; stamp(r);
+  const r=rec(activeGrade,id); r[f]=!r[f];
+  if(r[f] && f==='intakeDone') r.noshow=false;
+  if(r[f] && f==='noshow') r.intakeDone=false;
+  stamp(r);
   saveData(activeGrade); renderTable(); renderStats(); renderTabs();
 }
 function findItem(g,id){ return (roster[g]||[]).find(x=>x.id===id); }
@@ -799,7 +805,7 @@ function exportNoshow(){
   const rows=[];
   MY_GRADES.forEach(g=>{ (roster[g]||[]).forEach(stu=>{
     if(!isNamed(stu)) return;
-    const r=data[g][stu.id]||{}; if(!r.noshow) return;
+    const r=data[g][stu.id]||{}; if(!r.noshow || r.intakeDone) return;
     rows.push([LABEL[g]||g, stu.name, stu.city||"", ((r.notes||'')+'').trim()]);
   }); });
   if(!rows.length){ alert("\u05d0\u05d9\u05df \u05db\u05e8\u05d2\u05e2 \u05ea\u05dc\u05de\u05d9\u05d3\u05d9\u05dd \u05e9\u05e1\u05d5\u05de\u05e0\u05d5 \u05db\u05dc\u05d0 \u05d4\u05d2\u05d9\u05e2\u05d5."); return; }
@@ -833,6 +839,7 @@ async function startApp(){
   setSaving();
   await loadAll();
   await cleanupAcademyQuotas();
+  reconcileNoshow();
   if(storageOK){ dotEl().className='dot'; txtEl().textContent='נשמר'; } else setLocal();
   renderStats(); renderTabs(); renderTable();
   startLive();
